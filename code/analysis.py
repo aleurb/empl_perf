@@ -5,7 +5,7 @@
 # 
 # ```
 # @author: Aleksandras Urbonas
-# @date  : 20241211 ALUR
+# @date  : 20241212 ALUR
 # @email : aleksandras . urbonas (.) gmail . com
 # ```
 # 
@@ -16,7 +16,7 @@
 # 
 # 
 
-# In[1]:
+# In[ ]:
 
 
 import pandas as pd
@@ -35,10 +35,10 @@ sns.set_theme(rc={'figure.figsize':(3,3)})
 # 
 # 
 
-# In[2]:
+# In[ ]:
 
 
-raw_data_file_path = 'data/00_original/moondash_data.xlsx'
+raw_data_file_path = '../data/00_original/moondash_data.xlsx'
 
 # Load the data
 employee_data = pd.read_excel(raw_data_file_path, sheet_name='Employee Roster')
@@ -46,7 +46,7 @@ outcome_data = pd.read_excel(raw_data_file_path, sheet_name='Mid-Year Outcomes')
 
 
 
-# In[3]:
+# In[ ]:
 
 
 # Merge the data on employee_id
@@ -56,7 +56,7 @@ data_merged.set_index('employee_id', inplace=True)
 
 
 
-# In[4]:
+# In[ ]:
 
 
 # Display the first few rows to understand the structure
@@ -64,7 +64,7 @@ data_merged.head(2)
 
 
 
-# In[5]:
+# In[ ]:
 
 
 # Check the columns and data types
@@ -72,7 +72,7 @@ print(data_merged.info(), end='\n\n\n')
 
 
 
-# In[6]:
+# In[ ]:
 
 
 # Check for any missing values
@@ -86,7 +86,7 @@ print(data_merged.isnull().sum())
 # 
 # 
 
-# In[7]:
+# In[ ]:
 
 
 data_proc = data_merged
@@ -98,7 +98,7 @@ data_proc = data_merged
 #     
 #     
 
-# In[8]:
+# In[ ]:
 
 
 # remove null data
@@ -107,7 +107,7 @@ data_proc.shape
 
 
 
-# In[9]:
+# In[ ]:
 
 
 ### Clean `Age`
@@ -115,7 +115,7 @@ data_proc['age'] = np.round(data_proc['age'], 1)
 
 
 
-# In[10]:
+# In[ ]:
 
 
 ### Calc: `is_promo`: 1 = Ready, 0 = no value
@@ -126,7 +126,7 @@ data_proc.drop(columns='promo_decision', inplace=True)
 
 
 
-# In[11]:
+# In[ ]:
 
 
 ### `Job`: separate `Role` and `Level`
@@ -136,7 +136,7 @@ data_proc['job_rank'] = data_proc['job_level'].str[1].astype(int)
 
 
 
-# In[12]:
+# In[ ]:
 
 
 ### Recode `gender` to `is_men` for statistics
@@ -147,7 +147,7 @@ data_proc.drop(columns='gender', inplace=True)
 
 
 
-# In[13]:
+# In[ ]:
 
 
 ### Recode `perf_rating` to perf_rank: only a rating, no text
@@ -156,7 +156,7 @@ data_proc['perf_rank'] = data_proc['perf_rating'].str[0].astype(int)
 
 
 
-# In[14]:
+# In[ ]:
 
 
 ### Exclude non-performers, i.e. perf_rank = 1 or 2
@@ -165,14 +165,21 @@ print(f'''min: {min(data_proc['perf_rank'])}''')
 
 
 
-# In[15]:
+# In[ ]:
 
 
 data_proc.drop(columns='perf_rating', inplace=True)
 
 
 
-# In[16]:
+# ### Inclusion/Exclusion Criteria
+# 
+# New promotion this cycle effective dated 2023-09-30.
+# To be eligible for promotion, employees must have a tenure of at least 1.50 years by the 2023-09-30 effective date.
+# 
+#     We include employees that have worked longer than 1.5 year
+
+# In[ ]:
 
 
 ### Transform `hire_date` into `tenure` 
@@ -181,18 +188,25 @@ data_proc.drop(columns='perf_rating', inplace=True)
 print(f'''* hire_date: from {str(min(data_proc['hire_date']))[:10]} to {str(max(data_proc['hire_date']))[:10]}''')
 data_proc['hire_date'] = pd.to_datetime(data_proc['hire_date'])
 
-# Calculate tenure: years at work
-data_proc['tenure'] = np.round((pd.to_datetime('2024-03-31') - data_proc['hire_date']).dt.days / 365.25, 1)
+# Calculate tenure in years
+next_promotion_date = '2023-09-30'
+data_proc['tenure'] = np.round((pd.to_datetime(next_promotion_date) - data_proc['hire_date']).dt.days / 365.25, 1)
 
 
 
-# In[17]:
+# In[ ]:
 
 
-# Filter eligible employees for performance rating and promotion
-eligible_for_perf = data_proc[data_proc['hire_date'] <= '2023-03-31']
-eligible_for_promo = data_proc[data_proc['tenure'] >= 0.5]
-if 'hire_date' in data_proc.columns: data_proc.drop(columns='hire_date', inplace=True)
+data_proc.head(2)
+
+
+
+# In[ ]:
+
+
+# Filter employees eligible for promotion
+data_proc = data_proc[data_proc['tenure'] >= 1]
+# if 'hire_date' in data_proc.columns: data_proc.drop(columns='hire_date', inplace=True)
 
 
 
@@ -200,7 +214,7 @@ if 'hire_date' in data_proc.columns: data_proc.drop(columns='hire_date', inplace
 # 
 # 
 
-# In[18]:
+# In[ ]:
 
 
 # Drop rows with missing values in key columns, if any
@@ -209,16 +223,18 @@ data_clean = data_proc.dropna(subset=['perf_rank', 'is_men', 'is_promo'])
 # Drop duplicates (if any)
 data_clean = data_clean.drop_duplicates()
 
-# Check the cleaned data
-print(data_clean.isnull().sum()) 
-
 # Status: notify about number of removed duplicates
-print(f'duplicates removed: {data_proc.shape[0] - data_clean.shape[0]} records.')
+print(f'duplicates removed: {data_proc.shape[0] - data_clean.shape[0]} records.', "\n\n *** \n\n")
 
-print(data_clean.dtypes)
+# Check the cleaned data
+print(data_clean.isnull().sum())
 
 
-# In[19]:
+
+# In[ ]:
+
+
+print(data_clean.dtypes, "\n\n *** \n\n")
 
 
 # statistics for numeric values
@@ -236,7 +252,7 @@ data_clean.describe()
 data_clean[['perf_rank', 'is_men', 'is_promo']].head(4)
 
 
-# In[20]:
+# In[ ]:
 
 
 # Performance ratings by gender
@@ -245,16 +261,16 @@ data_clean.groupby(['job_role', 'is_men'])['is_promo'].count()
 
 
 
-# In[21]:
+# In[ ]:
 
 
 # Performance ratings by gender
-perf_by_gender = eligible_for_perf.groupby('is_men')['perf_rank'].mean()
+perf_by_gender = data_clean.groupby('is_men')['perf_rank'].mean()
 perf_by_gender
 
 
 
-# In[22]:
+# In[ ]:
 
 
 # Promotion decisions by gender
@@ -267,7 +283,7 @@ promo_by_gender
 # 
 # 
 
-# In[23]:
+# In[ ]:
 
 
 avg__is_promo = data_clean.groupby('is_promo')['is_promo'].count() / data_clean['is_promo'].count()
@@ -279,7 +295,7 @@ print(f'Average Promotion Rate: {np.round(avg__is_promo[1] * 100, 2)}%')
 # 
 # 
 
-# In[24]:
+# In[ ]:
 
 
 avg_promo__by__job_level = np.round(data_clean.groupby('job_level')['is_promo'].mean()*100, 1)
@@ -290,7 +306,7 @@ avg_promo__by__job_level
 #     > ALUR: difference by job level.
 # 
 
-# In[25]:
+# In[ ]:
 
 
 print(f'The difference by job level: from {min(avg_promo__by__job_level)}% up to {max(avg_promo__by__job_level)}%')
@@ -303,7 +319,7 @@ print(f'The difference by job level: from {min(avg_promo__by__job_level)}% up to
 # 
 # 
 
-# In[26]:
+# In[ ]:
 
 
 avg__is_promo__by__job_role = np.round(data_clean.groupby('job_role')['is_promo'].mean()*100, 1)
@@ -315,7 +331,7 @@ print(avg__is_promo__by__job_role)
 # 
 # 
 
-# In[27]:
+# In[ ]:
 
 
 np.round(data_clean.groupby('job_rank')['is_promo'].mean()*100, 1)
@@ -326,24 +342,24 @@ np.round(data_clean.groupby('job_rank')['is_promo'].mean()*100, 1)
 # 
 # 
 
-# In[28]:
+# In[ ]:
 
 
-eligible_for_perf.head(2)
+data_clean.head(2)
 
 
-# In[49]:
+# In[ ]:
 
 
 # Performance ratings boxplot
 plt.figure(figsize=(5, 3))
-sns.boxplot(x='perf_rank', y='is_men', data=eligible_for_perf)
+sns.boxplot(x='perf_rank', y='is_men', data=data_proc)
 plt.title('Performance Ranks by Gender')
 plt.show()
 
 
 
-# In[30]:
+# In[ ]:
 
 
 # Promotion decision bar plot
@@ -359,7 +375,7 @@ plt.show()
 
 # # Boxplots
 
-# In[31]:
+# In[ ]:
 
 
 sns.boxplot(x='job_function', y='is_men', hue='is_promo', data=data_clean)
@@ -375,7 +391,7 @@ plt.show()
 # 
 # 
 
-# In[32]:
+# In[ ]:
 
 
 # calculate mean of `x` grouped by`y`:
@@ -395,7 +411,7 @@ plt.show()
 
 
 
-# In[33]:
+# In[ ]:
 
 
 print(data_clean['is_men'].value_counts())
@@ -405,7 +421,7 @@ print(data_clean.groupby('is_men')['perf_rank'].describe())
 
 # ## Some charts
 
-# In[34]:
+# In[ ]:
 
 
 sns.countplot(data=data_clean, x='is_men')
@@ -414,7 +430,7 @@ plt.show()
 
 
 
-# In[35]:
+# In[ ]:
 
 
 sns.barplot(data=data_clean, x='perf_rank', y='is_men')
@@ -427,7 +443,7 @@ plt.show()
 # 
 # 
 
-# In[36]:
+# In[ ]:
 
 
 promotion_rate = data_clean.groupby('is_men')['is_promo'].mean().reset_index()
@@ -445,21 +461,21 @@ plt.show()
 # 
 # 
 
-# In[37]:
+# In[ ]:
 
 
 pd.crosstab(data_clean['is_men'], data_clean['region'])
 
 
 
-# In[38]:
+# In[ ]:
 
 
 pd.crosstab(data_clean['is_men'], data_clean['job_role'])
 
 
 
-# In[39]:
+# In[ ]:
 
 
 pd.crosstab(data_clean['is_men'], data_clean['job_rank'])
@@ -472,14 +488,14 @@ pd.crosstab(data_clean['is_men'], data_clean['job_rank'])
 # 
 # 
 
-# In[40]:
+# In[ ]:
 
 
 data_clean.describe()
 
 
 
-# In[41]:
+# In[ ]:
 
 
 sns.catplot(data=data_clean, x='perf_rank', y='job_rank', hue='is_men', kind='box')
@@ -488,7 +504,7 @@ plt.show()
 
 
 
-# In[42]:
+# In[ ]:
 
 
 sns.catplot(data=data_clean, x='job_function', y='is_promo', hue='is_men', kind='bar')
@@ -497,7 +513,7 @@ plt.show()
 
 
 
-# In[43]:
+# In[ ]:
 
 
 sns.catplot(data=data_clean, x='job_level', y='is_promo', hue='is_men', kind='bar')
@@ -506,7 +522,7 @@ plt.show()
 
 
 
-# In[44]:
+# In[ ]:
 
 
 sns.catplot(data=data_clean, x='region', y='is_promo', hue='is_men', kind='bar')
@@ -515,7 +531,7 @@ plt.show()
 
 
 
-# In[45]:
+# In[ ]:
 
 
 sns.catplot(data=data_clean, x='is_promo', y='is_men', hue='job_role', kind='bar')
@@ -539,14 +555,14 @@ plt.show()
 # 
 # 
 
-# In[46]:
+# In[ ]:
 
 
 data_clean.head(2)
 
 
 
-# In[47]:
+# In[ ]:
 
 
 from scipy import stats
@@ -566,7 +582,7 @@ else: print("No significant difference in performance scores by gender.")
 
 
 
-# In[48]:
+# In[ ]:
 
 
 # Check promotion rates by gender using a Chi-Square test 
